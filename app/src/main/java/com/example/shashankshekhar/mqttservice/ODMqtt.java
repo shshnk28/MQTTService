@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.os.Environment;
 import android.util.Log;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -16,6 +17,12 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -29,6 +36,8 @@ public class ODMqtt implements MqttCallback {
     private final String TAG = "Open-Day";
     private final String TOPIC_NAME = "iisc/smartx/crowd/network/ODRSSI";
     private final String TEST_TOPIC_NAME = "iisc/smartx/mobile/water/data";
+    private static final String SMART_CAMPUS_FOLDER_NAME = "SmartCampus";
+    private static final String SMART_CAMPUS_LOG_FILE_NAME = "SmartCampusLog.txt";
     /*
     sample data format
     UID,TimeStamp,Latitude,Longitude,OperatorName,AreaCode,NetworkName,GSMSignalStrength
@@ -41,6 +50,7 @@ public class ODMqtt implements MqttCallback {
 
     private String clientId;
     private Context applicationContext;
+
     public ODMqtt(Context appContext, String clientId) {
         this.applicationContext = appContext;
         this.clientId = clientId;
@@ -53,6 +63,7 @@ public class ODMqtt implements MqttCallback {
         connectOptions.setUserName(USERNAME);
         connectOptions.setPassword(PASSWORD.toCharArray());
         connectOptions.setConnectionTimeout(20);
+        connectOptions.setKeepAliveInterval(300); // keep alive is 300Seconds-5 minutes
         connectOptions.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1_1);
         MemoryPersistence persistence = new MemoryPersistence();
         try {
@@ -67,6 +78,8 @@ public class ODMqtt implements MqttCallback {
         setConnectionOptions();
         mqttClient.setCallback(this);
         IMqttToken token;
+        Integer keepAliveTime = connectOptions.getKeepAliveInterval();
+        printLog("keepAliveTime: "+keepAliveTime);
         try {
             token = mqttClient.connect(connectOptions);
         } catch (MqttException e) {
@@ -107,6 +120,8 @@ public class ODMqtt implements MqttCallback {
         } catch (MqttException e) {
             e.printStackTrace();
             printLog("exception in publishing");
+            writeDataToLogFile("MQTTService","exception in publishing");
+
         }
     }
 
@@ -118,11 +133,13 @@ public class ODMqtt implements MqttCallback {
     public void connectionLost(Throwable cause) {
         printLog("connection lost in receiver!!");
         printLog("cause: " + cause.getCause());
+        writeDataToLogFile("MQTTService", "connection Lost-" + cause.getCause());
     }
 
     @Override
     public void deliveryComplete(IMqttDeliveryToken tk) {
         printLog("delivery complete for token: " + tk);
+        writeDataToLogFile("MQTTService","delivery complete");
     }
 
     @Override
@@ -132,5 +149,34 @@ public class ODMqtt implements MqttCallback {
 
     private void printLog(String string) {
         Log.i(TAG, string);
+    }
+
+    public void writeDataToLogFile(String appName, String text) {
+        File smartCampusDirectory = new File(Environment.getExternalStorageDirectory(), SMART_CAMPUS_FOLDER_NAME);
+        if (smartCampusDirectory.exists() == false) {
+            if (!smartCampusDirectory.mkdirs()) {
+                return;
+            }
+        }
+        File logFile = new File(smartCampusDirectory, SMART_CAMPUS_LOG_FILE_NAME);
+        try {
+            BufferedWriter buf = new BufferedWriter(new FileWriter(logFile, true));
+            buf.append(currentTime() + ":" + appName + " : " + text);
+            buf.newLine();
+            buf.close();
+        } catch (IOException e) {
+            return;
+        }
+    }
+    public String currentTime () {
+        try {
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String currentTime = simpleDateFormat.format(new Date());
+            return currentTime;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

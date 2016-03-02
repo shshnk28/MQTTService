@@ -18,7 +18,7 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import java.util.UUID;
 
 public class MQTTService extends Service {
-    private final String SAMPLE_TEST_DATA =",1456753890,13.0198,77.5660,airtel,40445,Airtel,18";
+    private final String SAMPLE_TEST_DATA =",13.0198,77.5660,airtel,40445,Airtel,18";
     @Override
     public IBinder onBind(Intent intent) {
         // TODO: Return the communication channel to the service.
@@ -32,12 +32,12 @@ public class MQTTService extends Service {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                for (int i = 0; i < 40; i++) {
+                while (true) {
                     Long time = System.currentTimeMillis();
                     time = time/1000;
-                    odMqtt.publishMessge("SS"+ time.toString()+SAMPLE_TEST_DATA);
+                    odMqtt.publishMessge("Shashank,"+ time.toString()+SAMPLE_TEST_DATA);
                     try {
-                        Thread.sleep(8000);
+                        Thread.sleep(60000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
